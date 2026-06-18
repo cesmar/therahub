@@ -22,6 +22,7 @@ out/
 *.userosscache
 *.sln.docstates
 *.userprefs
+backend/.vs/
 
 ## Rider / JetBrains
 .idea/
