@@ -1,0 +1,139 @@
+###################
+# .NET / Backend  #
+###################
+
+## Carpetas de build
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+build/
+bld/
+out/
+
+## Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+## Rider / JetBrains
+.idea/
+*.sln.iml
+
+## Archivos de configuración con datos sensibles (NUNCA subir)
+appsettings.Development.json
+appsettings.Local.json
+appsettings.Production.json
+*.pfx
+*.key
+secrets.json
+
+## NuGet
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+
+## Resultados de pruebas
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+
+## Otros archivos generados por .NET
+*.cache
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+
+
+########################
+# Angular / Frontend   #
+########################
+
+## Dependencias
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+## Build de Angular
+/dist/
+/tmp/
+/out-tsc/
+/bazel-out/
+
+## Angular cache
+.angular/cache/
+.angular/
+
+## Variables de entorno con datos sensibles
+.env
+.env.local
+.env.*.local
+src/environments/environment.production.ts
+src/environments/environment.local.ts
+
+## Cobertura de pruebas
+/coverage/
+/libpeerconnection.log
+
+## IDEs
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/*
+
+
+###################
+# Docker          #
+###################
+
+## Variables de entorno usadas por docker-compose (datos sensibles)
+.env
+.env.docker
+docker-compose.override.yml
+
+## Volúmenes locales si se llegan a versionar accidentalmente
+**/docker-volumes/
+
+
+###################
+# Sistema Operativo#
+###################
+
+## macOS
+.DS_Store
+
+## Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+## Linux
+*~
+
+
+###################
+# General         #
+###################
+
+## Archivos de configuración local del editor
+*.local
+
+## Backups
+*.orig
