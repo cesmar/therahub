@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TheraHub.Application")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+722cb51cc9a7630961a5e6277086d855608e99da")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0c47974e0014725f44d134a97304886aef9c883c")]
 [assembly: System.Reflection.AssemblyProductAttribute("TheraHub.Application")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TheraHub.Application")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
