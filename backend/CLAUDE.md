@@ -49,7 +49,7 @@ src/
   TheraHub.Application/    # Use cases, abstractions, validation pipeline
   TheraHub.Infrastructure/ # Mediator implementation, EF Core, infrastructure services
   TheraHub.Api/            # ASP.NET Core 9 Web API, controllers, DI wiring
-tests/                     # Test projects
+tests/                     # Test projects (no test projects created yet — directory is a placeholder)
 ```
 
 ### Key architectural decisions
@@ -63,12 +63,14 @@ tests/                     # Test projects
 
 ## Multi-Tenancy (Critical)
 
-Multi-tenancy is **row-level isolation** using a `TenantId` / `PsychologistId` discriminator on every entity. This is a core invariant — never omit it.
+Multi-tenancy is **row-level isolation** using a `PracticeId` discriminator on every tenant-scoped entity. This is a core invariant — never omit it.
 
-- **Tenant** is a separate entity (not collapsed into Psychologist). Each Tenant maps to one Psychologist.
-- **Hybrid onboarding:** Carlos (admin) activates the Tenant; the psychologist completes their own profile.
-- **EF Core global query filters** will enforce tenant isolation at the database query level — every DbSet must have a global filter applied.
-- **Never expose cross-tenant data** — all queries must be scoped by TenantId.
+- **`Practice`** (`TheraHub.Domain/Entities/Practice.cs`) is the tenant entity — referred to as "Tenant" in planning/issues, but the actual class name is `Practice`. Each Practice maps to one Psychologist.
+- **Hybrid onboarding:** Carlos (admin) activates the Practice (`IsActive` / `ActivatedAt`); the psychologist completes their own profile.
+- **`ICurrentTenant`** (`TheraHub.Application/Abstractions/Tenancy/ICurrentTenant.cs`) exposes `PracticeId`. It's implemented by `Infrastructure/Services/CurrentTenant.cs`, which reads the `practiceId` claim off the current `HttpContext.User` — it throws if there's no authenticated user, so it can't be resolved outside a request (e.g. in background jobs) without a different implementation.
+- **Global query filters are applied per-entity, not automatically.** `TheraHubDbContext.OnModelCreating` calls `ApplyConfigurationsFromAssembly` for conventional config, then explicitly applies each tenant-scoped `IEntityTypeConfiguration<T>` (see `UserConfiguration`, `PsychologistConfiguration`). Each of those configs calls `builder.HasQueryFilter(e => e.PracticeId == _dbContext.CurrentPracticeId && !e.IsDeleted)` in `Configure()`. **When adding a new tenant-scoped entity, you must wire this up by hand**: give the configuration class a constructor taking `TheraHubDbContext`, add the query filter, and add the `new XConfiguration(this)` line in `OnModelCreating`. There is no base-class or reflection mechanism doing this for you.
+- **Tenant-scoped configuration classes must depend on `TheraHubDbContext`, not `ICurrentTenant`, in their query filters.** `TheraHubDbContext` exposes `public int CurrentPracticeId => _currentTenant.PracticeId;` specifically for this. EF Core caches the built model across requests, so a filter closure that captures an injected `ICurrentTenant` instance directly gets permanently bound to whichever DbContext instance happened to build the model first (a real bug we hit and fixed). Filters rooted at a member access on the DbContext type itself are rebound by EF Core to the actual current instance at query time — that's why the property must live on the DbContext, and configuration classes must hold a reference to the DbContext (passed as `this` from `OnModelCreating`) rather than to `ICurrentTenant` or any other captured service.
+- **Never expose cross-tenant data** — all queries must be scoped by PracticeId (either via the query filter above or explicitly for non-tenant-scoped lookups).
 
 ---
 
@@ -94,19 +96,19 @@ The project implements its **own CQRS mediator** (not MediatR). Understanding th
 **Abstractions** (defined in `TheraHub.Application/Abstractions/Mediator/`):
 - `ICommand<TResult>` / `IQuery<TResult>` — marker interfaces for requests
 - `ICommandHandler<TCommand, TResult>` / `IQueryHandler<TQuery, TResult>` — handler contracts
-- `ISender` — dispatches commands and queries through the pipeline
+- `ISender` — dispatches commands and queries through the pipeline via `SendCommandAsync<TResult>(command, ct)` and `SendQueryAsync<TResult>(query, ct)` (there is no single `Send()` method — commands and queries go through separate entry points)
 - `IPipelineBehavior<TRequest, TResult>` — middleware interface for cross-cutting concerns
-- `Result<T>` — discriminated union return type with `.IsSuccess`, `.IsFailure`, `.Value`, `.Error`
+- `Result<T>` — return type with `.IsSuccess`, `.Value`, `.Error` (no `.IsFailure` property — check `!result.IsSuccess`)
 
 **Adding a new use case:**
 1. Create a record implementing `ICommand<Result<T>>` or `IQuery<Result<T>>` in `Application`
 2. Add a `IValidator<YourCommand>` (FluentValidation) if validation is needed
 3. Implement `ICommandHandler<YourCommand, Result<T>>` or `IQueryHandler<...>`
-4. Handlers and validators auto-register via reflection scanning — no manual registration needed
-5. Inject `ISender` into a controller and call `sender.Send(command, cancellationToken)`
+4. Handlers and validators auto-register via reflection scanning in each layer's `DependencyInjection.cs` (`AddApplication` scans for `ICommandHandler<,>`/`IQueryHandler<,>` implementations and validators) — no manual registration needed
+5. Inject `ISender` into a controller and call `sender.SendCommandAsync(command, cancellationToken)` or `sender.SendQueryAsync(...)`
 
 **Pipeline execution order:**
-`ISender.Send()` → `ValidationBehavior` (FluentValidation) → handler → `Result<T>`
+`ISender.SendCommandAsync()`/`SendQueryAsync()` → `ValidationBehavior` (FluentValidation) → handler → `Result<T>`
 
 **See** `Application/Test/TestCommand.cs` and `Api/Controllers/HealthController.cs` for working examples of the full flow.
 
@@ -147,8 +149,8 @@ The project implements its **own CQRS mediator** (not MediatR). Understanding th
 |---|---|---|
 | #14 | Create .NET solution and project structure | ✅ Done |
 | #15 | Implement custom mediator pattern | ✅ Done |
-| #18 | Define core domain entities and base abstractions | 📋 Next |
-| #19 | Configure EF Core with multi-tenant global query filters | 📋 Next |
+| #18 | Define core domain entities and base abstractions | ✅ Done |
+| #19 | Configure EF Core with multi-tenant global query filters | 🔄 In progress |
 | #20 | Implement Tenant activation flow (hybrid onboarding) | 📋 Pending |
 | #21 | Implement Auth: registration + login + JWT | 📋 Pending |
 
@@ -179,7 +181,7 @@ The project implements its **own CQRS mediator** (not MediatR). Understanding th
 
 - ❌ Do not use MediatR — the custom mediator is intentional
 - ❌ Do not use engine-specific SQL (no `GETDATE()`, no SQL Server-only functions)
-- ❌ Do not omit TenantId from any new entity
+- ❌ Do not omit PracticeId from any new tenant-scoped entity, or forget to wire its `HasQueryFilter` in `TheraHubDbContext.OnModelCreating` (it is not automatic)
 - ❌ Do not expose data across tenants in any query
 - ❌ Do not throw exceptions for expected business failures — use `Result<T>`
 - ❌ Do not register handlers or validators manually — they auto-register via reflection

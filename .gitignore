@@ -36,6 +36,9 @@ appsettings.Production.json
 *.key
 secrets.json
 
+## Archivos de configuración de Claude Code
+backend/.claude/settings.local.json
+
 ## NuGet
 *.nupkg
 *.snupkg
