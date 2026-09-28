@@ -1,6 +1,7 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using TheraHub.Application.Abstractions.Tenancy;
+using TheraHub.Domain.Common;
 using TheraHub.Domain.Entities;
 using TheraHub.Infrastructure.Persistence.Configurations;
 
@@ -31,5 +32,14 @@ public class TheraHubDbContext : DbContext
         builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         builder.ApplyConfiguration(new UserConfiguration(this));
         builder.ApplyConfiguration(new PsychologistConfiguration(this));
+
+        // Applied once for every root entity deriving from BaseAuditableEntity, so a new entity
+        // never needs to remember to configure this itself.
+        foreach (var entityType in builder.Model.GetEntityTypes()
+                     .Where(t => t.BaseType == null && typeof(BaseAuditableEntity).IsAssignableFrom(t.ClrType)))
+        {
+            entityType.GetProperty(nameof(BaseAuditableEntity.CreatedBy)).SetMaxLength(256);
+            entityType.GetProperty(nameof(BaseAuditableEntity.UpdatedBy)).SetMaxLength(256);
+        }
     }
 }
