@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TheraHub.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using TheraHub.Infrastructure.Persistence;
 namespace TheraHub.Infrastructure.Migrations
 {
     [DbContext(typeof(TheraHubDbContext))]
-    partial class TheraHubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260925012148_AuditColumnsMaxLength")]
+    partial class AuditColumnsMaxLength
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

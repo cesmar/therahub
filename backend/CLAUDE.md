@@ -74,6 +74,21 @@ Multi-tenancy is **row-level isolation** using a `PracticeId` discriminator on e
 
 ---
 
+## Audit Fields & Soft Delete
+
+`BaseAuditableEntity`'s `CreatedAt`/`CreatedBy`/`UpdatedAt`/`UpdatedBy`/`IsDeleted` all have private setters and are populated by `AuditableEntityInterceptor` (`Infrastructure/Persistence/Interceptors/AuditableEntityInterceptor.cs`), a `SaveChangesInterceptor` registered in `AddInfrastructure`. **Never set these fields manually** — there's no public API to do so, and doing it via the change tracker directly would just get overwritten on the next save.
+
+- On `Added`, the interceptor stamps `CreatedAt`/`CreatedBy`.
+- On `Modified`, it stamps `UpdatedAt`/`UpdatedBy`.
+- **`Remove()` performs a soft delete, not a real one.** The interceptor intercepts entities in the `Deleted` state, flips them back to `Unchanged` (not `Modified` — that would mark every column as changed and overwrite the rest of the row; `Unchanged` plus explicit property writes keeps the resulting `UPDATE` scoped to just `IsDeleted`/`UpdatedAt`/`UpdatedBy`), and sets `IsDeleted = true` plus `UpdatedAt`/`UpdatedBy`. No row is ever physically removed through `SaveChanges`.
+- On a soft-deleted row, `UpdatedAt`/`UpdatedBy` record who deleted it and when — there's no separate `DeletedAt`/`DeletedBy`. Any later update or restore overwrites that information.
+- `CreatedBy`/`UpdatedBy` are populated from `ICurrentUser.Id` (falls back to `"system"` when there's no authenticated user); `ICurrentUser` never throws, unlike `ICurrentTenant`.
+- Soft-deleted rows are excluded from normal queries by the same tenant query filter (`!e.IsDeleted`, see Multi-Tenancy above). To read deleted rows, use `IgnoreQueryFilters()`.
+- **`DbSet.ExecuteDelete()`/`ExecuteUpdate()` bypass `SaveChanges` entirely** — they compile straight to SQL and never run through the interceptor. Don't use them on audited/soft-deletable entities; anything needing audit stamping or soft delete must go through `SaveChanges`/`SaveChangesAsync`.
+- `CreatedBy`/`UpdatedBy` are `nvarchar(256)`, configured once in `TheraHubDbContext.OnModelCreating` via a loop over all root entity types deriving from `BaseAuditableEntity` — not per-entity, so new entities get it automatically.
+
+---
+
 ## Stack
 
 | Concern | Technology |
@@ -150,7 +165,8 @@ The project implements its **own CQRS mediator** (not MediatR). Understanding th
 | #14 | Create .NET solution and project structure | ✅ Done |
 | #15 | Implement custom mediator pattern | ✅ Done |
 | #18 | Define core domain entities and base abstractions | ✅ Done |
-| #19 | Configure EF Core with multi-tenant global query filters | 🔄 In progress |
+| #19 | Configure EF Core with multi-tenant global query filters | ✅ Done |
+| #31 | Populate audit fields and soft delete via SaveChanges interceptor | 🔄 In progress |
 | #20 | Implement Tenant activation flow (hybrid onboarding) | 📋 Pending |
 | #21 | Implement Auth: registration + login + JWT | 📋 Pending |
 
